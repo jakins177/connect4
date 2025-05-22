@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect 4</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #f7f8fc 0%, #c3cfe2 100%);
+    }
+    #board {
+  display: grid;
+  grid-gap: 10px;
+  margin-bottom: 20px;
+  background-color: red;   /* changing background color to red */
+  padding: 10px;
+  border-radius: 15px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+    .cell {
+      width: 80px;
+      height: 80px;
+      background-color: #f0f8ff;
+      border-radius: 50%;
+      box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s ease, background-color 0.3s ease;
+    }
+    .cell.player {
+      /* Changed player chip color to green */
+      background: radial-gradient(circle at top left, #0db14b, #006400);
+    }
+    .cell.computer {
+      background: radial-gradient(circle at top left, #3498db, #2980b9);
+    }
+    .cell:not(.player):not(.computer):hover {
+      transform: scale(1.1);
+      cursor: pointer;
+    }
+    #message {
+      font-size: 1.4em;
+      color: #333333;
+      height: 1.4em;
+      margin-bottom: 10px;
+    }
+    #restart {
+      padding: 10px 20px;
+      font-size: 1em;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    #restart:hover {
+      background-color: #218838;
+    }
+    h1 {
+      color: #333333;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Connect 4</h1>
+  <div id="board"></div>
+  <div id="message"></div>
+  <button id="restart">Restart</button>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const cols = 7;
+      const rows = 6;
+      let board = [];
+      let gameOver = false;
+      const boardDiv = document.getElementById('board');
+      const messageDiv = document.getElementById('message');
+      const restartBtn = document.getElementById('restart');
+
+      function initBoard() {
+        board = Array(rows).fill(null).map(() => Array(cols).fill(0));
+        boardDiv.innerHTML = '';
+        boardDiv.style.gridTemplateColumns = `repeat(${cols}, 80px)`;
+        boardDiv.style.gridTemplateRows = `repeat(${rows}, 80px)`;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.row = r;
+            cell.dataset.col = c;
+            cell.addEventListener('click', () => handleClick(c));
+            boardDiv.appendChild(cell);
+          }
+        }
+        messageDiv.textContent = 'Your turn';
+        gameOver = false;
+      }
+
+      function handleClick(col) {
+        if (gameOver || !hasSpace(col)) return;
+        const row = getAvailableRow(col);
+        makeMove(row, col, 1);
+        if (checkWin(board, 1)) {
+          messageDiv.textContent = 'You win!';
+          gameOver = true;
+          return;
+        }
+        if (isBoardFull()) {
+          messageDiv.textContent = 'Draw!';
+          gameOver = true;
+          return;
+        }
+        messageDiv.textContent = "Computer's turn";
+        setTimeout(() => aiTurn(), 500);
+      }
+
+      function hasSpace(col) {
+        return board[0][col] === 0;
+      }
+
+      function getAvailableRow(col) {
+        for (let r = rows - 1; r >= 0; r--) {
+          if (board[r][col] === 0) return r;
+        }
+        return null;
+      }
+
+      function makeMove(row, col, player) {
+        board[row][col] = player;
+        const idx = row * cols + col;
+        boardDiv.children[idx].classList.add(player === 1 ? 'player' : 'computer');
+      }
+
+      function aiTurn() {
+        const col = chooseAIMove();
+        if (col === null) {
+          messageDiv.textContent = 'Draw!';
+          gameOver = true;
+          return;
+        }
+        const row = getAvailableRow(col);
+        makeMove(row, col, 2);
+        if (checkWin(board, 2)) {
+          messageDiv.textContent = 'Computer wins!';
+          gameOver = true;
+          return;
+        }
+        if (isBoardFull()) {
+          messageDiv.textContent = 'Draw!';
+          gameOver = true;
+          return;
+        }
+        messageDiv.textContent = 'Your turn';
+      }
+
+      function chooseAIMove() {
+        for (let c = 0; c < cols; c++) {
+          if (!hasSpace(c)) continue;
+          const r = getAvailableRow(c);
+          board[r][c] = 2;
+          if (checkWin(board, 2)) { board[r][c] = 0; return c; }
+          board[r][c] = 0;
+        }
+        for (let c = 0; c < cols; c++) {
+          if (!hasSpace(c)) continue;
+          const r = getAvailableRow(c);
+          board[r][c] = 1;
+          if (checkWin(board, 1)) { board[r][c] = 0; return c; }
+          board[r][c] = 0;
+        }
+        const valid = [];
+        for (let c = 0; c < cols; c++) if (hasSpace(c)) valid.push(c);
+        if (valid.length === 0) return null;
+        return valid[Math.floor(Math.random() * valid.length)];
+      }
+
+      function isBoardFull() {
+        return board.every(row => row.every(cell => cell !== 0));
+      }
+
+      function checkWin(bd, player) {
+        // horizontal
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c <= cols - 4; c++) {
+            if ([0,1,2,3].every(i => bd[r][c+i] === player)) return true;
+          }
+        }
+        // vertical
+        for (let c = 0; c < cols; c++) {
+          for (let r = 0; r <= rows - 4; r++) {
+            if ([0,1,2,3].every(i => bd[r+i][c] === player)) return true;
+          }
+        }
+        // diagonal down-right
+        for (let r = 0; r <= rows - 4; r++) {
+          for (let c = 0; c <= cols - 4; c++) {
+            if ([0,1,2,3].every(i => bd[r+i][c+i] === player)) return true;
+          }
+        }
+        // diagonal up-right
+        for (let r = 3; r < rows; r++) {
+          for (let c = 0; c <= cols - 4; c++) {
+            if ([0,1,2,3].every(i => bd[r-i][c+i] === player)) return true;
+          }
+        }
+        return false;
+      }
+
+      restartBtn.addEventListener('click', initBoard);
+      initBoard();
+    });
+  </script>
+</body>
+</html>
