@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connect 4</title>
   <style>
+    :root {
+      --cell-size: 80px;
+      --gap: 10px;
+    }
+    @media (max-width: 600px) {
+      :root {
+        --cell-size: 40px;
+        --gap: 5px;
+      }
+    }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
@@ -15,17 +25,17 @@
       background: linear-gradient(135deg, #f7f8fc 0%, #c3cfe2 100%);
     }
     #board {
-  display: grid;
-  grid-gap: 10px;
-  margin-bottom: 20px;
-  background-color: red;   /* changing background color to red */
-  padding: 10px;
-  border-radius: 15px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
+      display: grid;
+      grid-gap: var(--gap);
+      margin-bottom: 20px;
+      background-color: red;   /* changing background color to red */
+      padding: 10px;
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
     .cell {
-      width: 80px;
-      height: 80px;
+      width: var(--cell-size);
+      height: var(--cell-size);
       background-color: #f0f8ff;
       border-radius: 50%;
       box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.15);
@@ -62,6 +72,12 @@
     #restart:hover {
       background-color: #218838;
     }
+    .cell.win {
+      box-shadow: 0 0 10px 5px yellow;
+    }
+    #mode {
+      margin-bottom: 10px;
+    }
     h1 {
       color: #333333;
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
@@ -71,6 +87,10 @@
 </head>
 <body>
   <h1>Connect 4</h1>
+  <select id="mode">
+    <option value="single">Single Player</option>
+    <option value="multi">Two Players</option>
+  </select>
   <div id="board"></div>
   <div id="message"></div>
   <button id="restart">Restart</button>
@@ -80,15 +100,17 @@
       const rows = 6;
       let board = [];
       let gameOver = false;
+      let currentPlayer = 1;
       const boardDiv = document.getElementById('board');
       const messageDiv = document.getElementById('message');
       const restartBtn = document.getElementById('restart');
+      const modeSelect = document.getElementById('mode');
 
       function initBoard() {
         board = Array(rows).fill(null).map(() => Array(cols).fill(0));
         boardDiv.innerHTML = '';
-        boardDiv.style.gridTemplateColumns = `repeat(${cols}, 80px)`;
-        boardDiv.style.gridTemplateRows = `repeat(${rows}, 80px)`;
+        boardDiv.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+        boardDiv.style.gridTemplateRows = `repeat(${rows}, var(--cell-size))`;
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             const cell = document.createElement('div');
@@ -99,16 +121,20 @@
             boardDiv.appendChild(cell);
           }
         }
-        messageDiv.textContent = 'Your turn';
+        currentPlayer = 1;
+        messageDiv.textContent = modeSelect.value === 'single' ? 'Your turn' : 'Player 1 turn';
         gameOver = false;
       }
 
       function handleClick(col) {
         if (gameOver || !hasSpace(col)) return;
         const row = getAvailableRow(col);
-        makeMove(row, col, 1);
-        if (checkWin(board, 1)) {
-          messageDiv.textContent = 'You win!';
+        makeMove(row, col, currentPlayer);
+        if (checkWin(board, currentPlayer, true)) {
+          const winMsg = modeSelect.value === 'single'
+            ? (currentPlayer === 1 ? 'You win!' : 'Computer wins!')
+            : `Player ${currentPlayer} wins!`;
+          messageDiv.textContent = winMsg;
           gameOver = true;
           return;
         }
@@ -117,8 +143,14 @@
           gameOver = true;
           return;
         }
-        messageDiv.textContent = "Computer's turn";
-        setTimeout(() => aiTurn(), 500);
+
+        if (modeSelect.value === 'single') {
+          messageDiv.textContent = "Computer's turn";
+          setTimeout(() => aiTurn(), 500);
+        } else {
+          currentPlayer = currentPlayer === 1 ? 2 : 1;
+          messageDiv.textContent = `Player ${currentPlayer} turn`;
+        }
       }
 
       function hasSpace(col) {
@@ -147,7 +179,7 @@
         }
         const row = getAvailableRow(col);
         makeMove(row, col, 2);
-        if (checkWin(board, 2)) {
+        if (checkWin(board, 2, true)) {
           messageDiv.textContent = 'Computer wins!';
           gameOver = true;
           return;
@@ -185,35 +217,53 @@
         return board.every(row => row.every(cell => cell !== 0));
       }
 
-      function checkWin(bd, player) {
+      function checkWin(bd, player, mark = false) {
         // horizontal
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c <= cols - 4; c++) {
-            if ([0,1,2,3].every(i => bd[r][c+i] === player)) return true;
+            if ([0,1,2,3].every(i => bd[r][c+i] === player)) {
+              if (mark) for (let i=0;i<4;i++) highlight(r, c+i);
+              return true;
+            }
           }
         }
         // vertical
         for (let c = 0; c < cols; c++) {
           for (let r = 0; r <= rows - 4; r++) {
-            if ([0,1,2,3].every(i => bd[r+i][c] === player)) return true;
+            if ([0,1,2,3].every(i => bd[r+i][c] === player)) {
+              if (mark) for (let i=0;i<4;i++) highlight(r+i, c);
+              return true;
+            }
           }
         }
         // diagonal down-right
         for (let r = 0; r <= rows - 4; r++) {
           for (let c = 0; c <= cols - 4; c++) {
-            if ([0,1,2,3].every(i => bd[r+i][c+i] === player)) return true;
+            if ([0,1,2,3].every(i => bd[r+i][c+i] === player)) {
+              if (mark) for (let i=0;i<4;i++) highlight(r+i, c+i);
+              return true;
+            }
           }
         }
         // diagonal up-right
         for (let r = 3; r < rows; r++) {
           for (let c = 0; c <= cols - 4; c++) {
-            if ([0,1,2,3].every(i => bd[r-i][c+i] === player)) return true;
+            if ([0,1,2,3].every(i => bd[r-i][c+i] === player)) {
+              if (mark) for (let i=0;i<4;i++) highlight(r-i, c+i);
+              return true;
+            }
           }
         }
         return false;
       }
 
+      function highlight(r, c) {
+        const idx = r * cols + c;
+        boardDiv.children[idx].classList.add('win');
+      }
+
       restartBtn.addEventListener('click', initBoard);
+      modeSelect.addEventListener('change', initBoard);
       initBoard();
     });
   </script>
